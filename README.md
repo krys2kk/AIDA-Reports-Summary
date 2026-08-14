@@ -72,4 +72,4 @@ Plik `ulubione.json` i `ustawienia.json` tworzą się automatycznie obok
 
 ## Licencja
 
-Projekt wewnętrzny - brak jawnej licencji.
+[Apache License 2.0](LICENSE).

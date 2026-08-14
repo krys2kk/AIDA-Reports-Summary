@@ -1,12 +1,15 @@
 """Trwałe przechowywanie ulubionych pól i ulubionych całych sekcji.
 
-Ulubione zapisywane są w pliku JSON obok aplikacji (narzędzie jest
-instalowane na stałe na komputerach firmowych, więc ulubione są wspólne
-dla danej instalacji). Gdy katalog aplikacji jest tylko do odczytu,
-używany jest plik w katalogu domowym użytkownika.
+Ulubione zapisywane są w jednym stałym katalogu w profilu użytkownika
+(zobacz sciezki.katalog_aplikacji) - niezależnie od tego, gdzie aktualnie
+leży uruchamiany plik .exe, więc kopiowanie/przenoszenie .exe (np. na
+pulpit, na pendrive) nie zeruje ulubionych. Przy odczycie sprawdzane są
+też stare lokalizacje (obok .exe), w których poprzednia wersja programu
+trzymała te dane, żeby nic nie "zniknęło" po tej zmianie.
 
 Format pliku: lista wpisów; wpis z kluczem "pole" to ulubione pojedyncze
-pole, wpis z samą "sekcja" to ulubiona cała sekcja.
+pole, wpis z samą "sekcja" to ulubiona cała sekcja (starszy, nieużywany już
+do zapisu format - zachowany tylko dla wstecznej zgodności odczytu).
 """
 
 from __future__ import annotations
@@ -15,15 +18,17 @@ import json
 from pathlib import Path
 
 from parser import KluczPola
-from sciezki import katalog_aplikacji
+from sciezki import katalog_aplikacji, stare_lokalizacje_danych
 
 _NAZWA_PLIKU = "ulubione.json"
 _PLIK_APLIKACJI = katalog_aplikacji() / _NAZWA_PLIKU
-_PLIK_DOMOWY = Path.home() / ".raporty_aida64_ulubione.json"
 
 
 def _plik_do_odczytu() -> Path | None:
-    for sciezka in (_PLIK_APLIKACJI, _PLIK_DOMOWY):
+    if _PLIK_APLIKACJI.exists():
+        return _PLIK_APLIKACJI
+    for katalog in stare_lokalizacje_danych():
+        sciezka = katalog / _NAZWA_PLIKU
         if sciezka.exists():
             return sciezka
     return None
@@ -58,7 +63,4 @@ def zapisz_ulubione(pola: set[KluczPola], sekcje: set[str]) -> None:
         for k in sorted(pola, key=lambda k: (k.sekcja, k.podsekcja, k.pole))
     ]
     tekst = json.dumps(dane, ensure_ascii=False, indent=2)
-    try:
-        _PLIK_APLIKACJI.write_text(tekst, encoding="utf-8")
-    except OSError:
-        _PLIK_DOMOWY.write_text(tekst, encoding="utf-8")
+    _PLIK_APLIKACJI.write_text(tekst, encoding="utf-8")

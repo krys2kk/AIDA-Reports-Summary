@@ -30,8 +30,8 @@ def buduj_tabele(
     wybrane_klucze: list[KluczPola],
     postep=None,
 ) -> Path:
-    """Zapisuje raport .xlsx: wiersz = komputer, kolumny = Lp., Nazwa
-    komputera, System operacyjny i wybrane pola (w podanej kolejności).
+    """Zapisuje raport .xlsx: wiersz = komputer, kolumny = Lp., Nazwa pliku,
+    Nazwa komputera, System operacyjny i wybrane pola (w podanej kolejności).
 
     `postep` (opcjonalny) to funkcja (numer, lacznie, opis) wywoływana przy
     przetwarzaniu kolejnych komputerów - do paska postępu w GUI.
@@ -40,7 +40,7 @@ def buduj_tabele(
     ws = wb.active
     ws.title = "Raport"
 
-    naglowki = ["Lp.", "Nazwa komputera", "System operacyjny"] + [
+    naglowki = ["Lp.", "Nazwa pliku", "Nazwa komputera", "System operacyjny"] + [
         k.etykieta for k in wybrane_klucze
     ]
     for kolumna, tekst in enumerate(naglowki, start=1):
@@ -59,12 +59,13 @@ def buduj_tabele(
 
         wartosci_wiersza = [
             i,
+            profil.zrodlo.name,
             profil.nazwa_komputera or _BRAK_WARTOSCI,
             profil.system_operacyjny or _BRAK_WARTOSCI,
         ] + [profil.wartosci.get(klucz, _BRAK_WARTOSCI) for klucz in wybrane_klucze]
         for kolumna, wartosc in enumerate(wartosci_wiersza, start=1):
             komorka = ws.cell(row=wiersz, column=kolumna, value=wartosc)
-            komorka.alignment = Alignment(vertical="top", wrap_text=(kolumna > 3))
+            komorka.alignment = Alignment(vertical="top", wrap_text=(kolumna > 4))
             if pasek:
                 komorka.fill = pasek
 

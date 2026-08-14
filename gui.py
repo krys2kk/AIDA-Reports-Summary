@@ -580,7 +580,10 @@ class Aplikacja:
             return
 
         ustawienia["katalog_zapisu"] = str(Path(sciezka_docelowa).parent)
-        zapisz_ustawienia(ustawienia)
+        try:
+            zapisz_ustawienia(ustawienia)
+        except OSError:
+            pass  # brak zapamiętanego katalogu nie może zablokować zapisu raportu
 
         self._pokaz_postep(len(self.profile))
         try:

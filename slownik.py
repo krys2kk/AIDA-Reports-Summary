@@ -55,21 +55,32 @@ SEKCJE_EN_PL = {
     "System Drivers": "Sterowniki systemowe",
     "Services": "Usługi",
     "Share": "Udziały",
-    "Account Security": "Zabezpieczenia konta",
+    "Account Security": "Zabezpieczenia kont",
     "Users": "Użytkownicy",
     "Local Groups": "Grupy lokalne",
     "Global Groups": "Grupy globalne",
     "Auto Start": "Autostart",
     "Installed Programs": "Zainstalowane programy",
     "Licenses": "Licencje",
-    "Windows Security": "Zabezpieczenia Windows",
+    "Windows Security": "Zabezpieczenia systemu Windows",
     "Windows Update": "Windows Update",
-    "Firewall": "Zapora sieciowa",
+    "Firewall": "Zapory",
+    "Anti-Virus": "Antywirusowe",
+    "Anti-Spyware": "Przeciwko spyware",
     "Regional": "Ustawienia regionalne",
     "Environment": "Środowisko",
     "Control Panel": "Panel sterowania",
     "Database Software": "Oprogramowanie bazodanowe",
     "ODBC Drivers": "Sterowniki ODBC",
+
+    # Warianty nazw spotykane w natywnie polskich raportach z różnych wersji
+    # AIDA64 (nie tłumaczenia z angielskiego, tylko ujednolicenie pisowni
+    # między wersjami/edycjami programu) - bez tego to samo pojęcie tworzyło
+    # dwie osobne, "zdublowane" kategorie w zależności od wersji AIDA64,
+    # z której pochodził dany raport.
+    "Zabezpieczenia konta": "Zabezpieczenia kont",
+    "Zabezpieczenia Windows": "Zabezpieczenia systemu Windows",
+    "Zapora sieciowa": "Zapory",
 }
 
 # --- Podsekcje -------------------------------------------------------------
@@ -167,6 +178,20 @@ PODSEKCJE_EN_PL = {
     "System Slots Properties": "Właściwości gniazd systemowych",
     "On-Board Device Properties": "Właściwości urządzenia zintegrowanego",
     "Pointing Device Properties": "Właściwości urządzenia wskazującego",
+
+    # Naprawa zniekształconych znaków (zaobserwowana w raportach ze starszej
+    # wersji AIDA64, gdzie fragment dokumentu jest zapisany w innym
+    # kodowaniu niż reszta pliku - efekt: "Urz¹dzenia" zamiast "Urządzenia"
+    # itp.). Bez tego ta sama podsekcja tworzyła dwie zdublowane kategorie.
+    "Urz¹dzenia biometryczne": "Urządzenia biometryczne",
+    "Urz¹dzenia interfejsu HID": "Urządzenia interfejsu HID",
+    "Urz¹dzenia programowe": "Urządzenia programowe",
+    "Urz¹dzenia systemowe": "Urządzenia systemowe",
+    "Urz¹dzenia zabezpieczeñ": "Urządzenia zabezpieczeń",
+    "Urz¹dzenia zbli¿eniowe": "Urządzenia zbliżeniowe",
+    "Mysz i inne urz¹dzenia wskazuj¹ce": "Mysz i inne urządzenia wskazujące",
+    "Kontrolery dŸwiêku, wideo i gier": "Kontrolery dźwięku, wideo i gier",
+    "Wejœcia i wyjœcia audio": "Wejścia i wyjścia audio",
 }
 
 # --- Pola ------------------------------------------------------------------

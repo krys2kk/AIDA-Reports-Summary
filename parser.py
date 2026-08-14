@@ -36,12 +36,37 @@ from slownik import przetlumacz
 OBSLUGIWANE_ROZSZERZENIA = (".txt", ".html", ".htm", ".mhtml", ".mht", ".xml", ".csv")
 
 
+_CHARSET_RE = re.compile(rb"charset\s*=\s*[\"']?([\w-]+)", re.IGNORECASE)
+_ALIASY_KODOWAN = {
+    "iso-8859-1": "cp1252",
+    "iso8859-1": "cp1252",
+    "latin1": "cp1252",
+    "latin-1": "cp1252",
+    "windows-1250": "cp1250",
+    "windows-1252": "cp1252",
+}
+
+
+def _zdeklarowane_kodowanie(surowe: bytes) -> str | None:
+    """Odczytuje kodowanie zadeklarowane w nagłówku pliku HTML/XML, np.
+    <META HTTP-EQUIV="Content-Type" CONTENT="text/html; CHARSET=Windows-1250">
+    - AIDA64 eksportuje różne pliki z różnym zadeklarowanym kodowaniem
+    (spotykane: iso-8859-1, Windows-1250), więc trzeba je respektować
+    zamiast zgadywać po omacku."""
+    m = _CHARSET_RE.search(surowe[:4096])
+    if not m:
+        return None
+    nazwa = m.group(1).decode("ascii", errors="ignore").strip().lower()
+    return _ALIASY_KODOWAN.get(nazwa, nazwa)
+
+
 def _wczytaj_tekst(path: Path) -> str:
-    """Wczytuje plik wykrywając kodowanie po BOM.
+    """Wczytuje plik wykrywając kodowanie po BOM lub deklaracji w nagłówku.
 
     Eksporty AIDA64 na polskich Windowsach bywają zapisane w UTF-16
-    (typowo z BOM FF FE), a nie w UTF-8 - stąd konieczność wykrywania
-    kodowania zamiast zakładania na sztywno UTF-8.
+    (typowo z BOM FF FE) albo w jednobajtowym kodowaniu zadeklarowanym w
+    nagłówku HTML (iso-8859-1, Windows-1250...) - nie zawsze UTF-8, stąd
+    konieczność wykrywania kodowania zamiast zakładania go na sztywno.
     """
     surowe = path.read_bytes()
 
@@ -50,12 +75,41 @@ def _wczytaj_tekst(path: Path) -> str:
     if surowe.startswith(b"\xef\xbb\xbf"):
         return surowe.decode("utf-8-sig")
 
+    # Jeśli plik SAM deklaruje swoje kodowanie (typowe dla .html/.xml z
+    # AIDA64), ufamy tej deklaracji bezpośrednio - to najpewniejsze źródło
+    # prawdy. Ktoś, kto ustawia to jako "konkurs" z innymi kodowaniami wg
+    # liczby znaków zastępczych, może wybrać NIEWŁAŚCIWE kodowanie tylko
+    # dlatego, że plik ma gdzieś pojedynczy uszkodzony bajt: np. plik
+    # zadeklarowany jako cp1250 z jednym złym bajtem (1 podstawienie po
+    # naprawie) przegrywał z cp1252, który "przypadkiem" miał mniej
+    # podstawień ogółem, ale błędnie dekodował inne, poprawne polskie
+    # znaki. errors="replace" na deklarowanym kodowaniu naprawia tylko ten
+    # pojedynczy zepsuty bajt, nie psując reszty pliku.
+    deklarowane = _zdeklarowane_kodowanie(surowe)
+    if deklarowane:
+        try:
+            return surowe.decode(deklarowane)
+        except UnicodeDecodeError:
+            return surowe.decode(deklarowane, errors="replace")
+        except LookupError:
+            pass
+
     for kodowanie in ("utf-8", "cp1250", "cp1252"):
         try:
             return surowe.decode(kodowanie)
         except UnicodeDecodeError:
             continue
-    return surowe.decode("utf-8", errors="replace")
+
+    # Żadne kodowanie nie zdekodowało pliku w 100% bezstratnie i brak
+    # deklaracji w nagłówku - zamiast poddawać się od razu na rzecz UTF-8
+    # z podstawianiem (co zamienia WSZYSTKIE polskie znaki na "�", bo żaden
+    # z nich nie jest poprawnym bajtem UTF-8), wybieramy kandydata
+    # dającego najmniej takich podstawień.
+    def _liczba_zastapien(kodowanie: str) -> int:
+        return surowe.decode(kodowanie, errors="replace").count("�")
+
+    najlepsze = min(("utf-8", "cp1250", "cp1252"), key=_liczba_zastapien)
+    return surowe.decode(najlepsze, errors="replace")
 
 
 @dataclass(frozen=True)
@@ -93,11 +147,10 @@ def parse_report(path: str | Path) -> ParsedReport:
         tekst = _wczytaj_tekst(path)
         meta, surowe = _parse_txt_lines(tekst.splitlines())
     elif suffix in (".html", ".htm"):
-        soup = BeautifulSoup(_wczytaj_tekst(path), "lxml")
+        soup = _zbuduj_soup(_wczytaj_tekst(path))
         meta, surowe = _parse_html_soup(soup)
     elif suffix in (".mhtml", ".mht"):
-        html = _wyciagnij_html_z_mhtml(path)
-        soup = BeautifulSoup(html, "lxml")
+        soup = _zbuduj_soup(_wyciagnij_html_z_mhtml(path))
         meta, surowe = _parse_html_soup(soup)
     elif suffix == ".xml":
         meta, surowe = _parse_xml(_wczytaj_tekst(path))
@@ -193,6 +246,27 @@ def _parse_txt_lines(lines):
 # ---------------------------------------------------------------------------
 # HTML / MHTML
 # ---------------------------------------------------------------------------
+
+_META_CHARSET_RE = re.compile(r"charset\s*=\s*[\"']?[\w-]+", re.IGNORECASE)
+
+
+def _zbuduj_soup(tekst: str) -> BeautifulSoup:
+    """Buduje drzewo BeautifulSoup z już poprawnie zdekodowanego tekstu.
+
+    KRYTYCZNE: trzeba najpierw usunąć deklarację "charset=..." z nagłówka
+    <meta>. Tekst przekazywany tu jest CZYSTYM unicode (już poprawnie
+    zdekodowanym przez _wczytaj_tekst) - ale lxml/libxml2 samo wykrywa tę
+    deklarację i dla części zawartości próbuje ją ponownie zastosować,
+    efektywnie dekodując fragmenty tekstu drugi raz. Dla plików z
+    deklaracją inną niż UTF-8 (np. Windows-1250) psuje to losowo część
+    polskich znaków w wyniku (obserwowane realnie: "Urządzenia" →
+    "UrzÄ…dzenia"), tworząc pozornie zdublowane kategorie o tej samej
+    treści. Usunięcie deklaracji eliminuje tę drugą, zbędną reinterpretację
+    - dokładnie tak samo jak _parse_xml usuwa deklarację encoding z XML.
+    """
+    tekst_bez_deklaracji = _META_CHARSET_RE.sub("charset=utf-8", tekst, count=1)
+    return BeautifulSoup(tekst_bez_deklaracji, "lxml")
+
 
 def _wyciagnij_html_z_mhtml(path: Path) -> str:
     with open(path, "rb") as f:

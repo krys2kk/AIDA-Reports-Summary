@@ -1,0 +1,22 @@
+# Środowisko wirtualne / zależności
+.venv/
+__pycache__/
+*.pyc
+
+# Artefakty budowania PyInstaller
+build/
+dist/
+
+# Dane wykonawcze specyficzne dla instalacji (tworzone automatycznie przy
+# pierwszym uruchomieniu - nie powinny być współdzielone przez repozytorium)
+ulubione.json
+ustawienia.json
+
+# Wygenerowane raporty
+*.xlsx
+
+# Pliki systemowe / edytorów
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
